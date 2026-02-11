@@ -1,0 +1,25 @@
+[project]
+name = "stualert"
+version = "0.1.0"
+description = "A tool to turn on a flashing light when the automover moves from or to the station"
+authors = [
+    {name = "Moritz Tanz",email = "admin@der-taenzer.net"}
+]
+requires-python = ">=3.10"
+packages = [{include = "stualert", from = "src"}]
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "dotenv (>=0.9.9,<0.10.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "stualert.main:main"
+dev = "stualert.main:dev"

@@ -1,0 +1,25 @@
+{
+  "name": "stualert",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --env-file=.env --watch --import tsx src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "type-check": "tsc --noEmit"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "nodemon": "^3.1.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "reconnecting-websocket": "^4.4.0",
+    "ws": "^8.19.0"
+  }
+}

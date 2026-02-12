@@ -1,14 +1,14 @@
-import os
 import dotenv
+from .mower.auth import HusqvarnaAuth
 
-
-def main():
+async def main():
     print("Hallo, Welt2!")
-    print(os.environ.get("MY_ENV_VAR", "Umgebungsvariable nicht gesetzt"))
-
-def dev():
+    auth = HusqvarnaAuth()
+    token = await auth.get_token()
+    print(f"Access Token: {token}")
+async def dev():
     dotenv.load_dotenv()
-    main()
+    await main()
 
 if __name__ == "__main__":
     main()

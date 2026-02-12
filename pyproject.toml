@@ -12,7 +12,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "dotenv (>=0.9.9,<0.10.0)"
+    "dotenv (>=0.9.9,<0.10.0)",
+    "pydantic (>=2.12.5,<3.0.0)"
 ]
 
 

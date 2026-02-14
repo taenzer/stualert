@@ -3,7 +3,7 @@ export type Mower = {
   activity: MowerActivity;
 };
 
-enum MowerMode {
+export enum MowerMode {
   MAIN_AREA = "MAIN_AREA",
   SECONDARY_AREA = "SECONDARY_AREA",
   HOME = "HOME",
@@ -12,7 +12,7 @@ enum MowerMode {
   POI = "POI",
 }
 
-enum MowerActivity {
+export enum MowerActivity {
   UNKNOWN = "UNKNOWN",
   NOT_APPLICABLE = "NOT_APPLICABLE",
   MOWING = "MOWING",

@@ -25,6 +25,7 @@ const wss = new WebSocketServer({ server, path: WS_PATH });
 
 function broadcast(payload) {
   const msg = JSON.stringify(payload);
+  console.log(`[ws-mock] broadcasting ${payload.type} to ${wss.clients.size} clients. New activity: ${payload.attributes.mower?.activity ?? '?'}`);
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(msg);
   }
@@ -36,6 +37,7 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 // WebSocket behavior
 wss.on("connection", (ws) => {
+  console.log("[ws-mock] client connected");
   ws.send(JSON.stringify(events.battery()));
 });
 
@@ -52,7 +54,6 @@ function getNextPayload() {
 
   const name = CYCLE_SEQUENCE[cycleIndex];
   const fn = events[name];
-  console.log(`[ws-mock] event broadcast: ${name}`);
 
   // advance index
   cycleIndex += 1;

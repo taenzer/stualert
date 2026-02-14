@@ -1,16 +1,26 @@
 import { loadConfig } from "../../config";
 import { WebsocketMessage } from "../../shared/ws.type";
 import { HusqvarnaApi } from "./api";
+import { ActivityState } from "../activity/state";
+import { ActivityEmitter } from "../activity/emitter";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import WS from "ws";
 
 export class HusqvarnaWebsocket {
   private _ws?: ReconnectingWebSocket;
   private _api: HusqvarnaApi;
+  private _activityState?: ActivityState;
+  private _activityEmitter?: ActivityEmitter;
   private _pingInterval?: NodeJS.Timeout;
 
-  constructor(api: HusqvarnaApi) {
+  constructor(
+    api: HusqvarnaApi,
+    activityState?: ActivityState,
+    activityEmitter?: ActivityEmitter,
+  ) {
     this._api = api;
+    this._activityState = activityState;
+    this._activityEmitter = activityEmitter;
   }
 
   async setup() {
@@ -41,8 +51,27 @@ export class HusqvarnaWebsocket {
       const msg = JSON.parse(event.data) as WebsocketMessage;
       if (msg.type == "mower-event-v2") {
         const mower = msg.attributes.mower;
-        const status = mower.activity;
-        console.log("Mower Status:", status);
+        const activity = mower.activity;
+
+        console.log("Mower Status:", activity);
+
+        // Update activity state if provided
+        if (this._activityState) {
+          if (this._activityState.hasChanged(activity)) {
+            this._activityState.updateActivity(activity);
+
+            // Emit event to subscribers
+            if (this._activityEmitter) {
+              this._activityEmitter.emitActivityChanged({
+                previous: this._activityState.getCurrent()?.activity,
+                current: {
+                  activity: activity,
+                  timestamp: new Date(),
+                },
+              });
+            }
+          }
+        }
       }
     });
 

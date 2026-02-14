@@ -4,22 +4,35 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node --env-file=.env --watch --import tsx src/main.ts",
-    "build": "tsc",
+    "dev:server": "node --env-file=.env --watch --import tsx src/main.ts",
+    "dev:client": "vite",
+    "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:client": "vite build",
+    "build": "npm run build:client && npm run build:server && npm run copy:client",
+    "copy:client": "node ./scripts/copy-client.mjs",
     "start": "node dist/main.js",
     "type-check": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.2.3",
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.0.4"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@types/ws": "^8.18.1",
+    "express": "^5.2.1",
+    "preact": "^10.26.9",
     "reconnecting-websocket": "^4.4.0",
+    "tailwindcss": "^4.1.18",
     "ws": "^8.19.0"
   }
 }

@@ -1,0 +1,6 @@
+services:
+  husqvarna-ws-mock:
+    build: ./tools/husqvarna-ws-mock
+    ports:
+      - "8081:8081"
+    restart: unless-stopped

@@ -1,11 +1,10 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci || npm i --omit=dev
+RUN npm ci || npm i
 
-COPY . .
+COPY ./src ./src
 
-ENV PORT=8081
 EXPOSE 8081
 CMD ["npm", "start"]

@@ -1,30 +1,38 @@
 import { Config, loadConfig } from "./config";
-import { HusqvarnaApi } from "./services/husqvarna/api";
-import { HusqvarnaWebsocket } from "./services/husqvarna/websocket";
-import { ActivityState } from "./services/activity/state";
-import { ActivityEmitter } from "./services/activity/emitter";
-import { ActivityHandler } from "./services/activity/handler";
+import { HusqvarnaApi } from "./services/husqvarna/api.service";
+import { HusqvarnaWebsocket } from "./services/husqvarna/websocket.service";
+import { ActivityStateService } from "./services/activity/activity.service";
 import { createServer, startServer } from "./server";
+import { MockGPIOService, RelayState } from "./services/gpio/gpio.service";
+import { MowerActivity } from "./shared/mower.type";
 
 async function main() {
   const config = loadConfig();
-
-  // Initialize Activity Services
-  const activityState = new ActivityState(config.activity.maxHistorySize);
-  const activityEmitter = new ActivityEmitter();
-  const activityHandler = new ActivityHandler(
-    activityState,
-    activityEmitter,
-    config,
+  const activityService = new ActivityStateService(
+    config.activity.maxHistorySize,
   );
+  const gpioManager = new MockGPIOService(config);
+
+  activityService.onActivityChanged(({ previous, current }) => {
+    if (
+      [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(
+        current.activity,
+      )
+    ) {
+      gpioManager.switchWarningLight(RelayState.ON);
+    } else {
+      if (
+        previous &&
+        [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(previous)
+      ) {
+        gpioManager.switchWarningLight(RelayState.OFF);
+      }
+    }
+  });
 
   // Initialize Husqvarna Services
   const api: HusqvarnaApi = new HusqvarnaApi();
-  const ws: HusqvarnaWebsocket = new HusqvarnaWebsocket(
-    api,
-    activityState,
-    activityEmitter,
-  );
+  const ws: HusqvarnaWebsocket = new HusqvarnaWebsocket(api, activityService);
 
   // Start HTTP Server
   const httpServer = createServer();

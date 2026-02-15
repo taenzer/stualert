@@ -1,26 +1,19 @@
 import { loadConfig } from "../../config";
 import { WebsocketMessage } from "../../shared/ws.type";
-import { HusqvarnaApi } from "./api";
-import { ActivityState } from "../activity/state";
-import { ActivityEmitter } from "../activity/emitter";
+import { HusqvarnaApi } from "./api.service";
+import { ActivityStateService } from "../activity/activity.service";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import WS from "ws";
 
 export class HusqvarnaWebsocket {
   private _ws?: ReconnectingWebSocket;
   private _api: HusqvarnaApi;
-  private _activityState?: ActivityState;
-  private _activityEmitter?: ActivityEmitter;
+  private _activityService?: ActivityStateService;
   private _pingInterval?: NodeJS.Timeout;
 
-  constructor(
-    api: HusqvarnaApi,
-    activityState?: ActivityState,
-    activityEmitter?: ActivityEmitter,
-  ) {
+  constructor(api: HusqvarnaApi, activityService?: ActivityStateService) {
     this._api = api;
-    this._activityState = activityState;
-    this._activityEmitter = activityEmitter;
+    this._activityService = activityService;
   }
 
   async setup() {
@@ -53,23 +46,10 @@ export class HusqvarnaWebsocket {
         const mower = msg.attributes.mower;
         const activity = mower.activity;
 
-        console.log("Mower Status:", activity);
-
         // Update activity state if provided
-        if (this._activityState) {
-          if (this._activityState.hasChanged(activity)) {
-            this._activityState.updateActivity(activity);
-
-            // Emit event to subscribers
-            if (this._activityEmitter) {
-              this._activityEmitter.emitActivityChanged({
-                previous: this._activityState.getCurrent()?.activity,
-                current: {
-                  activity: activity,
-                  timestamp: new Date(),
-                },
-              });
-            }
+        if (this._activityService) {
+          if (this._activityService.hasChanged(activity)) {
+            this._activityService.updateActivity(activity);
           }
         }
       }

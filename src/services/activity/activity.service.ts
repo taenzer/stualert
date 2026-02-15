@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:stream";
 import { MowerActivity } from "../../shared/mower.type";
 
 export interface ActivityLogEntry {
@@ -11,12 +12,18 @@ export interface CurrentActivity {
   timestamp: Date;
 }
 
-export class ActivityState {
+export interface ActivityChangeEvent {
+  previous?: MowerActivity;
+  current: CurrentActivity;
+}
+
+export class ActivityStateService extends EventEmitter {
   private current: CurrentActivity | null = null;
   private history: ActivityLogEntry[] = [];
   private maxHistorySize: number;
 
   constructor(maxHistorySize: number = 10) {
+    super();
     this.maxHistorySize = maxHistorySize;
   }
 
@@ -28,6 +35,13 @@ export class ActivityState {
       activity: newActivity,
       timestamp: now,
     };
+
+    // Emit event to subscribers
+
+    this.emitActivityChanged({
+      previous: previousActivity,
+      current: this.current,
+    });
 
     this.history.push({
       activity: newActivity,
@@ -51,5 +65,30 @@ export class ActivityState {
 
   hasChanged(newActivity: MowerActivity): boolean {
     return this.current?.activity !== newActivity;
+  }
+  emitActivityChanged(event: ActivityChangeEvent): void {
+    const activityName = `activity-changed:${event.current.activity}`;
+
+    // Emit generic event
+    this.emit("activity-changed", event);
+
+    // Emit specific activity event
+    this.emit(activityName, event);
+  }
+
+  onActivityChanged(listener: (event: ActivityChangeEvent) => void): void {
+    this.on("activity-changed", listener);
+  }
+
+  onActivityChangedTo(
+    activity: MowerActivity,
+    listener: (event: ActivityChangeEvent) => void,
+  ): void {
+    const activityName = `activity-changed:${activity}`;
+    this.on(activityName, listener);
+  }
+
+  removeActivityListener(listener: (...args: any[]) => void): void {
+    this.removeListener("activity-changed", listener);
   }
 }

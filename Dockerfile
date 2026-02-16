@@ -9,6 +9,10 @@ RUN npm ci
 
 # dann source
 COPY ./src ./src
+COPY ./web ./web
+COPY ./scripts ./scripts
+COPY vite.config.ts ./
+COPY tsconfig*.json ./
 
 # build (client + server + copy)
 RUN npm run build

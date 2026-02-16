@@ -1,0 +1,33 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+trigger:
+  event:
+    - push
+  branch:
+    - main
+
+steps:
+  - name: Create and upload Docker Image
+    image: plugins/docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    settings:
+      registry: registry.der-taenzer.net
+      username:
+        from_secret: REGISTRY_USER
+      password:
+        from_secret: REGISTRY_PASS
+      build_args:
+       - BUILDKIT_INLINE_CACHE=1
+      repo: registry.der-taenzer.net/tnz/stualert
+      tags:
+        - latest
+        - build-${DRONE_BUILD_NUMBER}
+      dockerfile: ./Dockerfile
+  # - name: Refresh Docker Stack
+  #   image: plugins/webhook
+  #   settings:
+  #     urls: https://docker.der-taenzer.net/api/stacks/webhooks/40936ba1-c221-4307-86e8-5984e8e47c1d?BUILD_NR=${DRONE_BUILD_NUMBER}&BUILD_DATE=${DRONE_BUILD_CREATED}

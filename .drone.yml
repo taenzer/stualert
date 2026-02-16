@@ -15,6 +15,7 @@ steps:
     environment:
       DOCKER_BUILDKIT: 1
     settings:
+      buildx: true
       platform: linux/arm64
       registry: registry.der-taenzer.net
       username:

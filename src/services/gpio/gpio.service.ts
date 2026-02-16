@@ -7,10 +7,12 @@ export enum RelayState {
 
 export interface IGPIOService {
   switchWarningLight(newState: RelayState): void;
+  getWarningLightState(): RelayState;
 }
 
 export class MockGPIOService implements IGPIOService {
   private config: Config;
+  private warningLightState: RelayState = RelayState.OFF;
 
   constructor(config: Config) {
     this.config = config;
@@ -18,6 +20,11 @@ export class MockGPIOService implements IGPIOService {
 
   switchWarningLight(newState: RelayState): void {
     const pinNumber = this.config.gpio.warningLight.powerPin;
+    this.warningLightState = newState;
     console.log(`[GPIO Mock] Turned WL ${newState}! PIN ${pinNumber}`);
+  }
+
+  getWarningLightState(): RelayState {
+    return this.warningLightState;
   }
 }

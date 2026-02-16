@@ -7,9 +7,12 @@ import {
   CurrentActivity,
 } from "./services/activity/activity.service";
 import { ApiMowerUpdateResponse } from "./shared/api.type";
-import { RelayState } from "./services/gpio/gpio.service";
+import { IGPIOService, RelayState } from "./services/gpio/gpio.service";
 
-export function createServer(activityService: ActivityStateService): Express {
+export function createServer(
+  activityService: ActivityStateService,
+  gpioService: IGPIOService,
+): Express {
   const app = express();
 
   // Serve static files from public directory
@@ -30,7 +33,7 @@ export function createServer(activityService: ActivityStateService): Express {
         activityService.getCurrent()?.activity ??
         MowerActivity.UNKNOWN,
       history: activityService.getHistory(),
-      warningLightStatus: RelayState.OFF,
+      warningLightStatus: gpioService.getWarningLightState(),
     };
   };
 

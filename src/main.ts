@@ -35,7 +35,7 @@ async function main() {
   const ws: HusqvarnaWebsocket = new HusqvarnaWebsocket(api, activityService);
 
   // Start HTTP Server
-  const httpServer = createServer(activityService);
+  const httpServer = createServer(activityService, gpioManager);
   startServer(httpServer, config.http.port);
 
   // Start WebSocket connection

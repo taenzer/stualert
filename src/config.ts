@@ -46,7 +46,7 @@ export function loadConfig(): Config {
     },
     activity: {
       maxHistorySize: parseInt(
-        process.env.ACTIVITY_MAX_HISTORY_SIZE || "37",
+        process.env.ACTIVITY_MAX_HISTORY_SIZE || "5",
         10,
       ),
     },

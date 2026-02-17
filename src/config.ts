@@ -11,6 +11,7 @@ export interface Config {
       powerPin: number;
       switchModePin: number;
     };
+    useMock: boolean;
   };
   http: {
     port: number;
@@ -40,6 +41,7 @@ export function loadConfig(): Config {
           10,
         ),
       },
+      useMock: process.env.USE_GPIO_MOCK == "true",
     },
     http: {
       port: parseInt(process.env.HTTP_PORT || "3000", 10),

@@ -3,7 +3,7 @@ import { HusqvarnaApi } from "./services/husqvarna/api.service";
 import { HusqvarnaWebsocket } from "./services/husqvarna/websocket.service";
 import { ActivityStateService } from "./services/activity/activity.service";
 import { createServer, startServer } from "./server";
-import { MockGPIOService, RelayState } from "./services/gpio/gpio.service";
+import { createGPIOService, RelayState } from "./services/gpio/gpio.service";
 import { MowerActivity } from "./shared/mower.type";
 
 async function main() {
@@ -11,7 +11,26 @@ async function main() {
   const activityService = new ActivityStateService(
     config.activity.maxHistorySize,
   );
-  const gpioManager = new MockGPIOService(config);
+  const gpioManager = createGPIOService(config);
+
+  const cleanup = () => {
+    console.log("\n🧹 Cleaning up...");
+    gpioManager.cleanup();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", cleanup); // Ctrl+C
+  process.on("SIGTERM", cleanup); // Docker stop / kill
+  process.on("uncaughtException", (err) => {
+    console.error("❌ Uncaught Exception:", err);
+    gpioManager.cleanup();
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (err) => {
+    console.error("❌ Unhandled Rejection:", err);
+    gpioManager.cleanup();
+    process.exit(1);
+  });
 
   activityService.onActivityChanged(({ previous, current }) => {
     if (

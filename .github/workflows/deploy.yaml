@@ -4,9 +4,16 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      build_ws_mock:
+        description: 'Build and push ws-mock image'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
-  build:
+  build-stualert:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,7 +32,7 @@ jobs:
           username: ${{ secrets.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_PASS }}
 
-      - name: Build and Push
+      - name: Build and Push stualert
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -35,6 +42,40 @@ jobs:
           tags: |
             registry.der-taenzer.net/tnz/stualert:latest
             registry.der-taenzer.net/tnz/stualert:build-${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+  build-ws-mock:
+    runs-on: ubuntu-latest
+    if: inputs.build_ws_mock == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.der-taenzer.net
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Build and Push ws-mock
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tools/husqvarna-ws-mock
+          file: ./tools/husqvarna-ws-mock/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            registry.der-taenzer.net/tnz/husqvarna-ws-mock:latest
+            registry.der-taenzer.net/tnz/husqvarna-ws-mock:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false

@@ -28,6 +28,7 @@ class GPIOService implements IGPIOService {
     try {
       rpio.init({ mapping: "physical", gpiomem: true });
       rpio.open(this.powerPin, rpio.OUTPUT, rpio.HIGH);
+      rpio.write(this.powerPin, rpio.HIGH);
       console.log(`⚡[GPIO] Initialized power pin: ${this.powerPin}`);
       this.rpioReady = true;
     } catch (err) {

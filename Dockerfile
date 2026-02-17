@@ -35,4 +35,10 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
+
+# Health-Check: alle 30s prüfen, 10s Timeout, 3 Versuche, 40s Start-Verzögerung
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+
 CMD ["dist/main.js"]

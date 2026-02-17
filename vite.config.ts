@@ -6,13 +6,11 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [preact(), tailwindcss()],
   root: "web",
-  // build: {
-  //   outDir: path.resolve(__dirname, "dist/public"),
-  //   emptyOutDir: true,
-  //   rollupOptions: {
-  //     input: path.resolve(__dirname, "index.html"),
-  //   },
-  // },
+  build: {
+    rollupOptions: {
+      external: ["rpio"], // rpio vom Bundle ausschließen
+    },
+  },
   server: {
     proxy: {
       "/api": {

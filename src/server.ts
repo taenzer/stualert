@@ -15,6 +15,17 @@ export function createServer(
 ): Express {
   const app = express();
 
+  // Health-Check Endpoint
+  app.get("/health", (req: Request, res: Response) => {
+    const health = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024, // MB
+    };
+    res.status(200).json(health);
+  });
+
   // Serve static files from public directory
   const publicDir = path.join(__dirname, "public");
   app.use(express.static(publicDir));

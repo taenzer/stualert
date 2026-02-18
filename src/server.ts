@@ -2,12 +2,11 @@ import express, { Express, Request, Response } from "express";
 import path from "path";
 import { MowerActivity } from "./shared/mower.type";
 import {
-  ActivityLogEntry,
   ActivityStateService,
   CurrentActivity,
 } from "./services/activity/activity.service";
 import { ApiMowerUpdateResponse } from "./shared/api.type";
-import { IGPIOService, RelayState } from "./services/gpio/gpio.service";
+import { IGPIOService } from "./services/gpio/gpio.service";
 
 export function createServer(
   activityService: ActivityStateService,

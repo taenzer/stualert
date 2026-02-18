@@ -6,7 +6,7 @@ import {
 } from "../../src/shared/mower.type";
 import { MowerIcon } from "./components/mower-icon";
 import { Flash } from "./components/flash";
-import { RelayState } from "../../src/services/gpio/gpio.service";
+import { RelayState } from "../../src/shared/gpio.type";
 
 export function App() {
   const { data, connected, error } = useActivity();

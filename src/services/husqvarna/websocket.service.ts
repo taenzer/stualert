@@ -70,8 +70,8 @@ export class HusqvarnaWebsocket {
       if (this._pingInterval) {
         clearInterval(this._pingInterval);
         this._pingInterval = undefined;
-        process.exit(1);
       }
+      process.exit(1);
     });
   }
 

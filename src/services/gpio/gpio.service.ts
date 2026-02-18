@@ -1,10 +1,6 @@
 import { Config } from "../../config";
 import rpio from "rpio";
-
-export enum RelayState {
-  OFF = "LOW",
-  ON = "HIGH",
-}
+import { RelayState } from "../../shared/gpio.type";
 
 export interface IGPIOService {
   switchWarningLight(newState: RelayState): void;

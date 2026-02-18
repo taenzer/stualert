@@ -3,8 +3,9 @@ import { HusqvarnaApi } from "./services/husqvarna/api.service";
 import { HusqvarnaWebsocket } from "./services/husqvarna/websocket.service";
 import { ActivityStateService } from "./services/activity/activity.service";
 import { createServer, startServer } from "./server";
-import { createGPIOService, RelayState } from "./services/gpio/gpio.service";
+import { createGPIOService } from "./services/gpio/gpio.service";
 import { MowerActivity } from "./shared/mower.type";
+import { RelayState } from "./shared/gpio.type";
 
 async function main() {
   const config = loadConfig();

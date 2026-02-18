@@ -1,21 +1,22 @@
 import { Config } from "../../config";
 import rpio from "rpio";
 import { RelayState } from "../../shared/gpio.type";
+import { MowerActivity } from "../../shared/mower.type";
 
 export interface IGPIOService {
   switchWarningLight(newState: RelayState): void;
   getWarningLightState(): RelayState;
   cleanup(): void;
+  testWarningLight(getCurrentActivity: () => MowerActivity | undefined): void;
 }
 
 class GPIOService implements IGPIOService {
-  private config: Config;
   private warningLightState: RelayState = RelayState.OFF;
   private rpioReady: boolean = false;
   private powerPin: number;
+  private testTimeout?: NodeJS.Timeout;
 
   constructor(config: Config) {
-    this.config = config;
     this.powerPin = config.gpio.warningLight.powerPin;
     this.initPins();
   }
@@ -39,7 +40,37 @@ class GPIOService implements IGPIOService {
     const value = newState === RelayState.ON ? rpio.LOW : rpio.HIGH;
     rpio.write(this.powerPin, value);
     this.warningLightState = newState;
-    console.log(`[GPIO] Warning light switched to ${newState}`);
+    console.log(`⚡[GPIO] Warning light switched to ${newState}`);
+  }
+
+  testWarningLight(getCurrentActivity: () => MowerActivity | undefined): void {
+    // Falls bereits ein Test läuft, abbrechen
+    if (this.testTimeout) {
+      clearTimeout(this.testTimeout);
+      this.testTimeout = undefined;
+    }
+
+    console.log("⚡[GPIO] Test: Turning warning light ON for 5 seconds");
+    this.switchWarningLight(RelayState.ON);
+
+    this.testTimeout = setTimeout(() => {
+      const currentActivity = getCurrentActivity();
+      const shouldStayOn =
+        currentActivity &&
+        [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(
+          currentActivity,
+        );
+
+      if (shouldStayOn) {
+        console.log(
+          `⚡[GPIO] Test ended, but mower is ${currentActivity} - keeping light ON`,
+        );
+      } else {
+        console.log("⚡[GPIO] Test ended, turning warning light OFF");
+        this.switchWarningLight(RelayState.OFF);
+      }
+      this.testTimeout = undefined;
+    }, 5000);
   }
 
   getWarningLightState(): RelayState {
@@ -71,6 +102,9 @@ class MockGPIOService implements IGPIOService {
 
   getWarningLightState(): RelayState {
     return this.warningLightState;
+  }
+  testWarningLight(getCurrentActivity: () => MowerActivity | undefined): void {
+    console.log("⚡[GPIO Mock] Test Warning Light");
   }
 
   cleanup(): void {

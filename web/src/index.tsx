@@ -7,9 +7,12 @@ import {
 import { MowerIcon } from "./components/mower-icon";
 import { Flash } from "./components/flash";
 import { RelayState } from "../../src/shared/gpio.type";
+import { useState } from "preact/hooks";
 
 export function App() {
   const { data, connected, error } = useActivity();
+  const [testLoading, setTestLoading] = useState<boolean>(false);
+  const [testActive, setTestActive] = useState<boolean>(false);
 
   const bntClass = (activity: MowerActivity) => {
     switch (activity) {
@@ -31,11 +34,36 @@ export function App() {
     }
   };
 
+  const handleTestClick = async () => {
+    setTestLoading(true);
+
+    try {
+      const response = await fetch("/api/warning-light/test", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setTestActive(true);
+        setTimeout(() => setTestActive(false), 5000);
+      } else {
+        setTestActive(false);
+      }
+    } catch (error) {
+      setTestActive(false);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   return (
     <div class="flex justify-center p-4">
       <div class="w-full max-w-xl flex flex-col items-center">
         <div class="text-xl">
-          <Flash active={data && data.warningLightStatus == RelayState.ON} />
+          <Flash
+            active={
+              (data && data.warningLightStatus == RelayState.ON) || testActive
+            }
+          />
         </div>
         <div class="bg-base-200 p-4 rounded shadow border border-neutral-300 w-full">
           <div class="flex sm:gap-8 sm:items-center items-start justify-between flex-col gap-1 sm:flex-row">
@@ -77,7 +105,13 @@ export function App() {
               </div>
 
               <div>
-                <div class="btn btn-sm w-full mt-4">Warnlicht testen</div>
+                <button
+                  class="btn btn-sm w-full mt-4"
+                  onClick={handleTestClick}
+                  disabled={testActive || testLoading}
+                >
+                  {testActive ? "Test läuft" : "Lampe testen"}
+                </button>
               </div>
 
               <div class="divider divider-start text-sm">

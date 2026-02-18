@@ -25,6 +25,18 @@ export function createServer(
     res.status(200).json(health);
   });
 
+  // Test Warning Light Endpoint
+  app.post("/api/warning-light/test", (req: Request, res: Response) => {
+    console.log("🧪 Test warning light requested");
+
+    gpioService.testWarningLight(() => activityService.getCurrent()?.activity);
+
+    res.status(200).json({
+      success: true,
+      message: "Warning light test started (5 seconds)",
+    });
+  });
+
   // Serve static files from public directory
   const publicDir = path.join(__dirname, "public");
   app.use(express.static(publicDir));

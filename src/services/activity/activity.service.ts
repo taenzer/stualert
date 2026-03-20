@@ -22,9 +22,10 @@ export class ActivityStateService extends EventEmitter {
   private history: ActivityLogEntry[] = [];
   private maxHistorySize: number;
 
-  constructor(maxHistorySize: number = 10) {
+  constructor(maxHistorySize: number = 10, currentActivity: CurrentActivity) {
     super();
     this.maxHistorySize = maxHistorySize;
+    this.current = currentActivity;
   }
 
   updateActivity(newActivity: MowerActivity): void {

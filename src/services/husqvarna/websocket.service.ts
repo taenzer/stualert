@@ -1,27 +1,36 @@
-import { loadConfig } from "../../config";
-import { WebsocketMessage } from "../../shared/ws.type";
+import { Config } from "../../config";
 import { HusqvarnaApi } from "./api.service";
 import { ActivityStateService } from "../activity/activity.service";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import WS from "ws";
+import {
+  isWebsocketMessage,
+  isWebSocketOpenMessage,
+  parseJsonMessage,
+} from "../../shared/type-parse.helper";
 
 export class HusqvarnaWebsocket {
   private _ws?: ReconnectingWebSocket;
   private _api: HusqvarnaApi;
   private _activityService?: ActivityStateService;
   private _pingInterval?: NodeJS.Timeout;
+  private _config: Config;
 
-  constructor(api: HusqvarnaApi, activityService?: ActivityStateService) {
+  constructor(
+    api: HusqvarnaApi,
+    config: Config,
+    activityService?: ActivityStateService,
+  ) {
     this._api = api;
     this._activityService = activityService;
+    this._config = config;
   }
 
   async setup() {
-    const config = loadConfig();
     const token = await this._api?.getToken();
 
     this._ws = new ReconnectingWebSocket(
-      `${config.husqvarna.websocketUrl}`,
+      `${this._config.husqvarna.websocketUrl}`,
       undefined,
       {
         minReconnectionDelay: 1.8 * 60 * 60_000,
@@ -41,17 +50,30 @@ export class HusqvarnaWebsocket {
     });
 
     this._ws.addEventListener("message", (event) => {
-      const msg = JSON.parse(event.data) as WebsocketMessage;
-      if (msg.type == "mower-event-v2") {
-        const mower = msg.attributes.mower;
-        const activity = mower.activity;
+      const msg = parseJsonMessage((event as any).data);
+      if (!msg) return;
 
-        // Update activity state if provided
-        if (this._activityService) {
-          if (this._activityService.hasChanged(activity)) {
+      if (isWebSocketOpenMessage(msg)) {
+        console.log("✅ WebSocket ready! Connection-Id: " + msg.connectionId);
+        return;
+      } else if (isWebsocketMessage(msg)) {
+        if (msg.type === "mower-event-v2") {
+          const mower = msg.attributes.mower;
+          const activity = mower.activity;
+
+          if (mower.id != this._config.mower.id) {
+            return;
+          }
+
+          if (
+            this._activityService &&
+            this._activityService.hasChanged(activity)
+          ) {
             this._activityService.updateActivity(activity);
           }
         }
+      } else {
+        console.warn("⚠️ Ignoring malformed websocket message");
       }
     });
 

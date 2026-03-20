@@ -5,6 +5,7 @@ export function useActivity() {
   const [data, setData] = useState<ApiMowerUpdateResponse>();
   const [connected, setConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastMessageAt, setLastMessageAt] = useState<number>(Date.now());
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -13,65 +14,17 @@ export function useActivity() {
     const baseDelay = 2000; // 2s
     const maxDelay = 30000; // 30s
 
-    // Heartbeat / Offline-Erkennung
-    let lastMessageAt = Date.now();
-    let monitorTimer: number | undefined;
-    const heartbeatTimeout = 45_000; // 45s ohne Nachricht -> Backend wahrscheinlich offline
-    const monitorInterval = 10_000; // prüfe alle 10s
-
     const connect = () => {
       es = new EventSource("/api/activity/stream");
 
       es.onopen = () => {
         setConnected(true);
         setError(null);
-        // Verbindung steht wieder, Rücksetzen des Backoffs
-        retryCount = 0;
-        if (retryTimer) {
-          clearTimeout(retryTimer);
-          retryTimer = undefined;
-        }
-
-        // reset heartbeat timestamp
-        lastMessageAt = Date.now();
-
-        // Starte Monitor, falls noch nicht gestartet
-        if (!monitorTimer) {
-          monitorTimer = window.setInterval(() => {
-            if (Date.now() - lastMessageAt > heartbeatTimeout) {
-              console.warn(
-                "Keine Nachrichten vom Backend innerhalb des Heartbeat-Timeouts. Vermutlich offline.",
-              );
-              setConnected(false);
-              setError("Verbindung verloren. Reconnecting...");
-
-              try {
-                es?.close();
-              } catch (e) {
-                // ignore
-              }
-              es = null;
-
-              // Exponentielles Backoff mit Obergrenze
-              const delay = Math.min(
-                maxDelay,
-                baseDelay * Math.pow(2, retryCount),
-              );
-              retryCount += 1;
-              if (retryTimer) {
-                clearTimeout(retryTimer);
-              }
-              retryTimer = window.setTimeout(() => {
-                connect();
-              }, delay);
-            }
-          }, monitorInterval);
-        }
       };
 
       es.onmessage = (ev) => {
         // Aktualisiere letzten Nachrichten-Timestamp
-        lastMessageAt = Date.now();
+        setLastMessageAt(Date.now());
 
         try {
           const data = JSON.parse(ev.data) as ApiMowerUpdateResponse;
@@ -93,12 +46,6 @@ export function useActivity() {
           // ignore
         }
         es = null;
-
-        // Monitor anhalten (falls läuft) — reconnect-Logik übernimmt wieder
-        if (monitorTimer) {
-          clearInterval(monitorTimer);
-          monitorTimer = undefined;
-        }
 
         // Exponentielles Backoff mit Obergrenze
         const delay = Math.min(maxDelay, baseDelay * Math.pow(2, retryCount));
@@ -123,11 +70,8 @@ export function useActivity() {
       if (retryTimer) {
         clearTimeout(retryTimer);
       }
-      if (monitorTimer) {
-        clearInterval(monitorTimer);
-      }
     };
   }, []);
 
-  return { data, connected, error };
+  return { data, connected, error, lastMessageAt };
 }

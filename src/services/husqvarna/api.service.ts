@@ -1,26 +1,42 @@
 import path from "node:path";
 import { Config, loadConfig } from "../../config";
 import fs from "fs/promises";
+import { CurrentActivity } from "../activity/activity.service";
+import { MowerActivity, MowerMode } from "../../shared/mower.type";
 
 export class HusqvarnaApi {
   private _token?: Token;
   private readonly TOKEN_FILE = path.join(process.cwd(), ".token-cache.json");
+  private readonly _config: Config;
 
-  constructor() {}
+  constructor(config: Config) {
+    this._config = config;
+  }
 
-  async getMowerList(): Promise<Mower[]> {
-    const token = await this.getToken();
-    const config: Config = loadConfig();
-    const res = await fetch(`${config.husqvarna.apiBaseUrl}/mowers`, {
-      headers: {
-        Authorization: `Bearer ${token.accessToken}`,
-        "Authorization-Provider": "Husqvarna",
-        "X-Api-Key": config.husqvarna.clientId,
+  async getCurrentActivity(mowerId: string): Promise<CurrentActivity> {
+    const res = await fetch(
+      `${this._config.husqvarna.apiBaseUrl}/mowers/${mowerId}`,
+      {
+        headers: await this.getAuthHeaders(),
       },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed fetch mower activity: ${res.statusText}`);
+    }
+    const mower = (await res.json()) as { data: MowerResponse };
+
+    return {
+      activity: mower.data.attributes.mower.activity,
+      timestamp: new Date(),
+    };
+  }
+
+  private async getMowerList(): Promise<Mower[]> {
+    const res = await fetch(`${this._config.husqvarna.apiBaseUrl}/mowers`, {
+      headers: await this.getAuthHeaders(),
     });
 
     if (!res.ok) {
-      console.log(await res.json());
       throw new Error(`Failed to fetch mower list: ${res.statusText}`);
     }
 
@@ -32,13 +48,50 @@ export class HusqvarnaApi {
     }));
   }
 
-  async getToken(): Promise<Token> {
+  private async getAuthHeaders() {
+    const token = await this.getToken();
+
+    return {
+      Authorization: `Bearer ${token.accessToken}`,
+      "Authorization-Provider": "Husqvarna",
+      "X-Api-Key": this._config.husqvarna.clientId,
+    };
+  }
+
+  async printMowerIds(): Promise<void> {
+    const mowers = await this.getMowerList();
+    console.log("ℹ️  Available mowers:");
+    mowers.map((mower) => console.log(`-> ${mower.name}: ${mower.id}`));
+  }
+
+  async checkMowerId(mowerId: string): Promise<boolean> {
+    const mowers = await this.getMowerList();
+    return mowers.filter((mower) => mower.id == mowerId).length == 1;
+  }
+
+  private async initToken(): Promise<void> {
     await this.loadTokenFromDisk();
 
     if (this._token && this._token.expiresAt > new Date()) {
-      return this._token;
+      return;
     }
 
+    const token = await this.fetchNewToken();
+
+    this._token = token;
+    // Token auf Disk speichern
+    await this.saveTokenToDisk(token);
+    return;
+  }
+
+  async getToken(): Promise<Token> {
+    if (!this._token) {
+      await this.initToken();
+    }
+    return this._token!;
+  }
+
+  async fetchNewToken(): Promise<Token> {
     const tokenResponse = await this.login();
     const expiresAt = new Date();
     expiresAt.setSeconds(
@@ -46,9 +99,6 @@ export class HusqvarnaApi {
     ); // Refresh 1 minute before expiry
 
     const token: Token = { accessToken: tokenResponse.access_token, expiresAt };
-    this._token = token;
-    // Token auf Disk speichern
-    await this.saveTokenToDisk(token);
     return token;
   }
 
@@ -66,14 +116,14 @@ export class HusqvarnaApi {
       // Nur nutzen wenn noch gültig
       if (token.expiresAt > new Date()) {
         this._token = token;
-        console.log("✅ Loaded valid token from cache");
+        console.log("✅ Loaded valid auth token from cache");
       } else {
-        console.log("⚠️  Cached token expired, will fetch new one");
+        console.log("⚠️  Cached auth token expired, will fetch new one");
         await this.deleteTokenFile();
       }
     } catch (error) {
       // Datei existiert nicht oder ist korrupt - kein Problem
-      console.log("ℹ️  No cached token found");
+      console.log("ℹ️  No cached auth token found");
     }
   }
 
@@ -84,7 +134,7 @@ export class HusqvarnaApi {
         JSON.stringify(token, null, 2),
         { mode: 0o600 }, // Nur Owner kann lesen/schreiben
       );
-      console.log("💾 Token cached to disk");
+      console.log("💾 Auth Token cached to disk");
     } catch (error) {
       console.error("Failed to cache token:", error);
       // Nicht kritisch, weiter machen
@@ -143,6 +193,10 @@ type MowerResponse = {
   attributes: {
     system: {
       name: string;
+    };
+    mower: {
+      mode: MowerMode;
+      activity: MowerActivity;
     };
   };
 };

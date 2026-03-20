@@ -4,62 +4,103 @@ import { HusqvarnaWebsocket } from "./services/husqvarna/websocket.service";
 import { ActivityStateService } from "./services/activity/activity.service";
 import { createServer, startServer } from "./server";
 import { createGPIOService } from "./services/gpio/gpio.service";
+import type { IGPIOService } from "./services/gpio/gpio.service";
 import { MowerActivity } from "./shared/mower.type";
 import { RelayState } from "./shared/gpio.type";
 
-async function main() {
-  const config = loadConfig();
-  const activityService = new ActivityStateService(
-    config.activity.maxHistorySize,
+function isWarningLightActivity(activity?: MowerActivity): boolean {
+  return (
+    !!activity &&
+    [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(activity)
   );
-  const gpioManager = createGPIOService(config);
+}
+function logInvalidMowerIdAndHelp(api: HusqvarnaApi): void {
+  console.error(
+    "❌ STARTUP FAILED. No or invalid mower ID found in env! Please make sure to set MOWER_ID environment variable.",
+  );
+  api.printMowerIds();
+}
 
-  const cleanup = () => {
+async function createActivityService(
+  config: Config,
+  api: HusqvarnaApi,
+  mowerId: string,
+): Promise<ActivityStateService> {
+  const initial = await api.getCurrentActivity(mowerId);
+  return new ActivityStateService(config.activity.maxHistorySize, initial);
+}
+
+function registerProcessHandlers(gpioManager: IGPIOService): void {
+  const gracefulCleanup = () => {
     console.log("\n🧹 Cleaning up...");
     gpioManager.cleanup();
     process.exit(0);
   };
 
-  process.on("SIGINT", cleanup); // Ctrl+C
-  process.on("SIGTERM", cleanup); // Docker stop / kill
-  process.on("uncaughtException", (err) => {
-    console.error("❌ Uncaught Exception:", err);
+  const fatalCleanup = (label: string) => (err: unknown) => {
+    console.error(label, err);
     gpioManager.cleanup();
     process.exit(1);
-  });
-  process.on("unhandledRejection", (err) => {
-    console.error("❌ Unhandled Rejection:", err);
-    gpioManager.cleanup();
-    process.exit(1);
-  });
+  };
 
+  process.on("SIGINT", gracefulCleanup); // Ctrl+C
+  process.on("SIGTERM", gracefulCleanup); // Docker stop / kill
+  process.on("uncaughtException", fatalCleanup("❌ Uncaught Exception:"));
+  process.on("unhandledRejection", fatalCleanup("❌ Unhandled Rejection:"));
+}
+
+function wireWarningLight(
+  activityService: ActivityStateService,
+  gpioManager: IGPIOService,
+): void {
   activityService.onActivityChanged(({ previous, current }) => {
-    if (
-      [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(
-        current.activity,
-      )
-    ) {
+    if (isWarningLightActivity(current.activity)) {
       gpioManager.switchWarningLight(RelayState.ON);
-    } else {
-      if (
-        previous &&
-        [MowerActivity.LEAVING, MowerActivity.GOING_HOME].includes(previous)
-      ) {
-        gpioManager.switchWarningLight(RelayState.OFF);
-      }
+      return;
+    }
+
+    if (previous && isWarningLightActivity(previous)) {
+      gpioManager.switchWarningLight(RelayState.OFF);
     }
   });
+}
 
-  // Initialize Husqvarna Services
-  const api: HusqvarnaApi = new HusqvarnaApi();
-  const ws: HusqvarnaWebsocket = new HusqvarnaWebsocket(api, activityService);
-
-  // Start HTTP Server
+function startHttpServer(
+  config: Config,
+  activityService: ActivityStateService,
+  gpioManager: IGPIOService,
+): void {
   const httpServer = createServer(activityService, gpioManager);
   startServer(httpServer, config.http.port);
+}
+
+async function main() {
+  const config = loadConfig();
+  const api = new HusqvarnaApi(config);
+
+  const mowerId = config.mower.id;
+  if (!mowerId) {
+    logInvalidMowerIdAndHelp(api);
+    return;
+  }
+
+  if (!(await api.checkMowerId(mowerId))) {
+    logInvalidMowerIdAndHelp(api);
+    return;
+  }
+
+  const activityService = await createActivityService(config, api, mowerId);
+  const gpioManager = createGPIOService(config);
+
+  registerProcessHandlers(gpioManager);
+  wireWarningLight(activityService, gpioManager);
 
   // Start WebSocket connection
-  await ws.setup();
+  const ws = new HusqvarnaWebsocket(api, config, activityService);
+  // await ws.setup();
+
+  // Start HTTP Server
+  startHttpServer(config, activityService, gpioManager);
 
   console.log("✅ Application started successfully");
 }

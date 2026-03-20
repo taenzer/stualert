@@ -10,7 +10,7 @@ import { RelayState } from "../../src/shared/gpio.type";
 import { useState } from "preact/hooks";
 
 export function App() {
-  const { data, connected, error } = useActivity();
+  const { data, connected, error, lastMessageAt } = useActivity();
   const [testLoading, setTestLoading] = useState<boolean>(false);
   const [testActive, setTestActive] = useState<boolean>(false);
 
@@ -18,7 +18,7 @@ export function App() {
     switch (activity) {
       case MowerActivity.UNKNOWN:
       case MowerActivity.NOT_APPLICABLE:
-        return "";
+        return "btn-neutral";
       case MowerActivity.MOWING:
         return "btn-success";
       case MowerActivity.GOING_HOME:
@@ -26,7 +26,7 @@ export function App() {
         return "btn-warning";
       case MowerActivity.CHARGING:
       case MowerActivity.PARKED_IN_CS:
-        return "btn-neutral";
+        return "btn-info";
       case MowerActivity.STOPPED_IN_GARDEN:
         return "btn-error";
       default:
@@ -67,9 +67,13 @@ export function App() {
         </div>
         <div class="bg-base-200 p-4 rounded shadow border border-neutral-300 w-full">
           <div class="flex sm:gap-8 sm:items-center items-start justify-between flex-col gap-1 sm:flex-row">
-            <div class="flex gap-2 items-center">
+            <div class="flex flex-col items-start">
               <h1 class="text-xl font-bold">StuAlert Dashboard</h1>
+              <span class="text-xs">
+                Stand: {new Date(lastMessageAt).toLocaleTimeString()} Uhr
+              </span>
             </div>
+
             {connected && (
               <span class="inline-flex items-center border border-success text-success text-xs font-medium px-1.5 py-0.5 rounded-sm">
                 <span class="w-2 h-2 me-1 bg-success rounded-full animate-pulse"></span>

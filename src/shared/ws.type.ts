@@ -1,5 +1,10 @@
 import { Mower, MowerActivity, MowerMode } from "./mower.type";
 
+export type WebSocketOpenMessage = {
+  ready: boolean;
+  connectionId: string;
+};
+
 export type WebsocketMessage = {
   id: string;
   type:

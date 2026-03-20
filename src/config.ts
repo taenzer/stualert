@@ -19,6 +19,9 @@ export interface Config {
   activity: {
     maxHistorySize: number;
   };
+  mower: {
+    id: string | null | undefined;
+  };
 }
 
 export function loadConfig(): Config {
@@ -51,6 +54,9 @@ export function loadConfig(): Config {
         process.env.ACTIVITY_MAX_HISTORY_SIZE || "5",
         10,
       ),
+    },
+    mower: {
+      id: process.env.MOWER_ID,
     },
   };
 }

@@ -46,6 +46,20 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
           sbom: false
+
+      - name: Build and Push stualert (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            registry.der-taenzer.net/tnz/stualert:amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
   build-ws-mock:
     runs-on: ubuntu-latest
     if: inputs.build_ws_mock == true

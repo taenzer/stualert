@@ -28,6 +28,10 @@ async function createActivityService(
 ): Promise<ActivityStateService> {
   const initial = await api.getCurrentActivity(mowerId);
   return new ActivityStateService(config.activity.maxHistorySize, initial);
+  // return new ActivityStateService(config.activity.maxHistorySize, {
+  //   activity: MowerActivity.LEAVING,
+  //   timestamp: new Date(),
+  // });
 }
 
 function registerProcessHandlers(gpioManager: IGPIOService): void {
@@ -53,6 +57,14 @@ function wireWarningLight(
   activityService: ActivityStateService,
   gpioManager: IGPIOService,
 ): void {
+  if (
+    isWarningLightActivity(
+      activityService.getCurrent()?.activity ?? MowerActivity.UNKNOWN,
+    )
+  ) {
+    gpioManager.switchWarningLight(RelayState.ON);
+  }
+
   activityService.onActivityChanged(({ previous, current }) => {
     if (isWarningLightActivity(current.activity)) {
       gpioManager.switchWarningLight(RelayState.ON);
@@ -97,7 +109,7 @@ async function main() {
 
   // Start WebSocket connection
   const ws = new HusqvarnaWebsocket(api, config, activityService);
-  // await ws.setup();
+  await ws.setup();
 
   // Start HTTP Server
   startHttpServer(config, activityService, gpioManager);

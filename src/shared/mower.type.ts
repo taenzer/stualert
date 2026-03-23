@@ -21,6 +21,21 @@ export enum MowerActivity {
   LEAVING = "LEAVING",
   PARKED_IN_CS = "PARKED_IN_CS",
   STOPPED_IN_GARDEN = "STOPPED_IN_GARDEN",
+  PAUSED = "PAUSED",
+}
+
+export enum MowerState {
+  UNKNOWN = "UNKNOWN",
+  PAUSED = "PAUSED",
+  IN_OPERATION = "IN_OPERATION",
+  WAIT_UPDATING = "WAIT_UPDATING",
+  WAIT_POWER_UP = "WAIT_POWER_UP",
+  RESTRICTED = "RESTRICTED",
+  OFF = "OFF",
+  STOPPED = "STOPPED",
+  ERROR = "ERROR",
+  FATAL_ERROR = "FATAL_ERROR",
+  ERROR_AT_POWER_UP = "ERROR_AT_POWER_UP",
 }
 
 export function translateMowerActivity(activity: MowerActivity): string {
@@ -41,6 +56,8 @@ export function translateMowerActivity(activity: MowerActivity): string {
       return "In Ladestation geparkt";
     case MowerActivity.STOPPED_IN_GARDEN:
       return "Im Garten gestoppt";
+    case MowerActivity.PAUSED:
+      return "Pausiert";
     default:
       return activity;
   }

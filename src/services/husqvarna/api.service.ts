@@ -37,6 +37,7 @@ export class HusqvarnaApi {
     });
 
     if (!res.ok) {
+      console.error(res);
       throw new Error(`Failed to fetch mower list: ${res.statusText}`);
     }
 

@@ -25,12 +25,16 @@ export class ActivityStateService extends EventEmitter {
   constructor(maxHistorySize: number = 10, currentActivity: CurrentActivity) {
     super();
     this.maxHistorySize = maxHistorySize;
-    this.current = currentActivity;
+    this.updateActivity(currentActivity.activity);
   }
 
   updateActivity(newActivity: MowerActivity): void {
     const now = new Date();
     const previousActivity = this.current?.activity;
+
+    if (!this.hasChanged(newActivity)) {
+      return;
+    }
 
     this.current = {
       activity: newActivity,
@@ -65,7 +69,7 @@ export class ActivityStateService extends EventEmitter {
   }
 
   hasChanged(newActivity: MowerActivity): boolean {
-    return this.current?.activity !== newActivity;
+    return this.current?.activity != newActivity;
   }
   emitActivityChanged(event: ActivityChangeEvent): void {
     const activityName = `activity-changed:${event.current.activity}`;

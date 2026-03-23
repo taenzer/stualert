@@ -1,4 +1,4 @@
-import { Mower, MowerActivity, MowerMode } from "./mower.type";
+import { Mower, MowerActivity, MowerMode, MowerState } from "./mower.type";
 
 export type WebSocketOpenMessage = {
   ready: boolean;
@@ -23,10 +23,11 @@ export type WebsocketMowerEventMessage = WebsocketMessage & {
   type: "mower-event-v2";
   attributes: {
     mower: {
+      id: string;
       mode: MowerMode;
       activity: MowerActivity;
       inactiveReason: string;
-      state: string;
+      state: MowerState;
       errorCode: number;
     };
   };

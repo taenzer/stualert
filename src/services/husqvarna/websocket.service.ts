@@ -8,6 +8,7 @@ import {
   isWebSocketOpenMessage,
   parseJsonMessage,
 } from "../../shared/type-parse.helper";
+import { MowerActivity, MowerState } from "../../shared/mower.type";
 
 export class HusqvarnaWebsocket {
   private _ws?: ReconnectingWebSocket;
@@ -59,16 +60,33 @@ export class HusqvarnaWebsocket {
       } else if (isWebsocketMessage(msg)) {
         if (msg.type === "mower-event-v2") {
           const mower = msg.attributes.mower;
-          const activity = mower.activity;
 
-          if (mower.id != this._config.mower.id) {
+          if (!mower.state || !mower.activity) {
             return;
           }
 
+          if (msg.id != this._config.mower.id) {
+            console.debug(
+              "⚠️ Skipped Mower Event Webhook Message because of invalid mower id.",
+              mower.id,
+              this._config.mower.id,
+            );
+            return;
+          }
+
+          let activity = mower.activity;
           if (
-            this._activityService &&
-            this._activityService.hasChanged(activity)
+            activity == MowerActivity.NOT_APPLICABLE &&
+            mower.state == MowerState.PAUSED
           ) {
+            activity = MowerActivity.PAUSED;
+          }
+
+          if (activity == MowerActivity.NOT_APPLICABLE) {
+            return;
+          }
+
+          if (this._activityService) {
             this._activityService.updateActivity(activity);
           }
         }

@@ -71,17 +71,16 @@ export class HusqvarnaApi {
   }
 
   private async initToken(): Promise<void> {
-    await this.loadTokenFromDisk();
+    const diskToken = await this.loadTokenFromDisk();
 
-    if (this._token && this._token.expiresAt > new Date()) {
+    if (diskToken && this.isTokenValid(diskToken)) {
+      this._token = diskToken;
+      console.log("✅ Loaded valid auth token from cache");
       return;
     }
 
-    const token = await this.fetchNewToken();
+    await this.renewToken();
 
-    this._token = token;
-    // Token auf Disk speichern
-    await this.saveTokenToDisk(token);
     return;
   }
 
@@ -89,7 +88,23 @@ export class HusqvarnaApi {
     if (!this._token) {
       await this.initToken();
     }
+    if (!this.isTokenValid(this._token!)) {
+      await this.renewToken();
+    }
     return this._token!;
+  }
+
+  private isTokenValid(token: Token): boolean {
+    return token.expiresAt > new Date();
+  }
+
+  private async renewToken(): Promise<void> {
+    console.log("⚠️ Renewing auth token");
+    this.deleteTokenFile();
+    const token = await this.fetchNewToken();
+    this._token = token;
+    this.saveTokenToDisk(token);
+    return;
   }
 
   async fetchNewToken(): Promise<Token> {
@@ -103,28 +118,18 @@ export class HusqvarnaApi {
     return token;
   }
 
-  private async loadTokenFromDisk(): Promise<void> {
+  private async loadTokenFromDisk(): Promise<Token | undefined> {
     try {
       const data = await fs.readFile(this.TOKEN_FILE, "utf-8");
       const cached = JSON.parse(data);
-
-      // Date-String zurück zu Date konvertieren
       const token: Token = {
         accessToken: cached.accessToken,
         expiresAt: new Date(cached.expiresAt),
       };
-
-      // Nur nutzen wenn noch gültig
-      if (token.expiresAt > new Date()) {
-        this._token = token;
-        console.log("✅ Loaded valid auth token from cache");
-      } else {
-        console.log("⚠️  Cached auth token expired, will fetch new one");
-        await this.deleteTokenFile();
-      }
+      return token;
     } catch (error) {
-      // Datei existiert nicht oder ist korrupt - kein Problem
       console.log("ℹ️  No cached auth token found");
+      return;
     }
   }
 

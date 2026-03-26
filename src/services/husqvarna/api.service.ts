@@ -94,12 +94,16 @@ export class HusqvarnaApi {
     return this._token!;
   }
 
+  async forceRenewToken(): Promise<void> {
+    await this.renewToken();
+  }
+
   private isTokenValid(token: Token): boolean {
     return token.expiresAt > new Date();
   }
 
   private async renewToken(): Promise<void> {
-    console.log("⚠️ Renewing auth token");
+    console.log("⚠️  Renewing auth token");
     this.deleteTokenFile();
     const token = await this.fetchNewToken();
     this._token = token;

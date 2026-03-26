@@ -15,6 +15,9 @@ export class HusqvarnaWebsocket {
   private _api: HusqvarnaApi;
   private _activityService?: ActivityStateService;
   private _pingInterval?: NodeJS.Timeout;
+  private _tokenRefreshTimeout?: NodeJS.Timeout;
+  private _accessToken?: string;
+  private _restartInFlight = false;
   private _config: Config;
 
   constructor(
@@ -28,29 +31,43 @@ export class HusqvarnaWebsocket {
   }
 
   async setup() {
-    const token = await this._api?.getToken();
+    await this.refreshAccessTokenAndScheduleNext();
+    this.initWebSocket();
+  }
 
-    this._ws = new ReconnectingWebSocket(
+  private initWebSocket() {
+    const ws = new ReconnectingWebSocket(
       `${this._config.husqvarna.websocketUrl}`,
       undefined,
       {
         minReconnectionDelay: 1.8 * 60 * 60_000,
-        maxReconnectionDelay: 2 * 60 * 60_000,
-        WebSocket: this.makeAuthWebSocket(() => `Bearer ${token.accessToken}`),
+        maxReconnectionDelay: 1.99 * 60 * 60_000,
+        WebSocket: this.makeAuthWebSocket(
+          () => `Bearer ${this._accessToken ?? ""}`,
+        ),
       },
     );
 
-    this._ws.addEventListener("open", () => {
+    this._ws = ws;
+
+    ws.addEventListener("open", () => {
+      if (this._ws !== ws) return;
       console.log("✅ WebSocket connection established");
 
+      if (this._pingInterval) {
+        clearInterval(this._pingInterval);
+        this._pingInterval = undefined;
+      }
+
       this._pingInterval = setInterval(() => {
-        if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-          this._ws.send("ping");
+        if (this._ws === ws && ws.readyState === 1 /* OPEN */) {
+          ws.send("ping");
         }
       }, 59_000);
     });
 
-    this._ws.addEventListener("message", (event) => {
+    ws.addEventListener("message", (event) => {
+      if (this._ws !== ws) return;
       const msg = parseJsonMessage((event as any).data);
       if (!msg) return;
 
@@ -96,23 +113,78 @@ export class HusqvarnaWebsocket {
     });
 
     // Aufräumen, wenn Verbindung geschlossen wird
-    this._ws.addEventListener("close", (code) => {
-      //   console.log(code);
+    ws.addEventListener("close", () => {
+      if (this._ws !== ws) return;
       if (this._pingInterval) {
         clearInterval(this._pingInterval);
         this._pingInterval = undefined;
       }
     });
 
-    this._ws.addEventListener("error", (err) => {
+    ws.addEventListener("error", (err) => {
+      if (this._ws !== ws) return;
       console.error("WebSocket error:", err);
-      // bei schwerwiegenden Fehlern Interval entfernen
+
       if (this._pingInterval) {
         clearInterval(this._pingInterval);
         this._pingInterval = undefined;
       }
-      process.exit(1);
+
+      const message = (err as any)?.message
+        ? String((err as any).message)
+        : String(err);
+
+      // Typischer Fehler, wenn der Bearer Token abgelaufen ist.
+      if (message.includes("401") || message.includes("403")) {
+        void this.restartWebSocket().catch((restartErr) => {
+          console.error("Failed to restart websocket:", restartErr);
+        });
+      }
     });
+  }
+
+  private async restartWebSocket() {
+    if (this._restartInFlight) return;
+    this._restartInFlight = true;
+    try {
+      await this._api.forceRenewToken();
+      await this.refreshAccessTokenAndScheduleNext();
+
+      // Schließe die aktuelle Verbindung und initialisiere direkt neu,
+      // damit wir nicht Stunden auf das Reconnect-Backoff warten.
+      try {
+        this._ws?.close();
+      } catch {
+        // ignore
+      }
+      this._ws = undefined;
+
+      this.initWebSocket();
+    } finally {
+      this._restartInFlight = false;
+    }
+  }
+
+  private async refreshAccessTokenAndScheduleNext(): Promise<void> {
+    const token = await this._api.getToken();
+    this._accessToken = token.accessToken;
+
+    if (this._tokenRefreshTimeout) {
+      clearTimeout(this._tokenRefreshTimeout);
+      this._tokenRefreshTimeout = undefined;
+    }
+
+    // Token 30s vor Ablauf auffrischen (min. 30s, damit wir nicht in einer Tight-Loop landen)
+    const refreshInMs = Math.max(
+      30_000,
+      token.expiresAt.getTime() - Date.now() - 30_000,
+    );
+
+    this._tokenRefreshTimeout = setTimeout(() => {
+      void this.refreshAccessTokenAndScheduleNext().catch((err) => {
+        console.error("Failed to refresh auth token:", err);
+      });
+    }, refreshInMs);
   }
 
   makeAuthWebSocket(getAuthHeader: () => string) {

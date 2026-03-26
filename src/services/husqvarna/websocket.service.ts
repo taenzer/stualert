@@ -35,6 +35,10 @@ export class HusqvarnaWebsocket {
     this.initWebSocket();
   }
 
+  async restartNow(): Promise<void> {
+    await this.restartWebSocket();
+  }
+
   private initWebSocket() {
     const ws = new ReconnectingWebSocket(
       `${this._config.husqvarna.websocketUrl}`,

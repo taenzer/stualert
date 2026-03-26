@@ -19,6 +19,10 @@ export interface Config {
   activity: {
     maxHistorySize: number;
   };
+  watchdog: {
+    warningPersistResetMs: number;
+    hardResetCooldownMs: number;
+  };
   mower: {
     id: string | null | undefined;
   };
@@ -52,6 +56,16 @@ export function loadConfig(): Config {
     activity: {
       maxHistorySize: parseInt(
         process.env.ACTIVITY_MAX_HISTORY_SIZE || "5",
+        10,
+      ),
+    },
+    watchdog: {
+      warningPersistResetMs: parseInt(
+        process.env.WATCHDOG_WARNING_PERSIST_RESET_MS || String(15 * 60_000),
+        10,
+      ),
+      hardResetCooldownMs: parseInt(
+        process.env.WATCHDOG_HARD_RESET_COOLDOWN_MS || String(10 * 60_000),
         10,
       ),
     },

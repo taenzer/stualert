@@ -11,6 +11,7 @@ import { IGPIOService } from "./services/gpio/gpio.service";
 export function createServer(
   activityService: ActivityStateService,
   gpioService: IGPIOService,
+  hardResetMowerStatus: () => Promise<void>,
 ): Express {
   const app = express();
 
@@ -35,6 +36,24 @@ export function createServer(
       success: true,
       message: "Warning light test started (5 seconds)",
     });
+  });
+
+  // Hard Reset Mower Status (force REST refresh + WS restart)
+  app.post("/api/mower/hard-reset", async (req: Request, res: Response) => {
+    console.log("🧱 Hard-reset requested");
+    try {
+      await hardResetMowerStatus();
+      res.status(200).json({
+        success: true,
+        data: buildApiResponse(),
+      });
+    } catch (err) {
+      console.error("❌ Hard-reset failed:", err);
+      res.status(500).json({
+        success: false,
+        message: "Hard-reset failed",
+      });
+    }
   });
 
   // Serve static files from public directory
@@ -70,12 +89,15 @@ export function createServer(
 
     send(buildApiResponse());
 
-    activityService.onActivityChanged(({ previous, current }) => {
-      send(buildApiResponse(current));
-    });
+    const listener = (event: { current: CurrentActivity }) => {
+      send(buildApiResponse(event.current));
+    };
+
+    activityService.onActivityChanged(listener);
 
     req.on("close", () => {
       console.log("Client disconnected from activity stream");
+      activityService.removeActivityListener(listener);
     });
   });
 

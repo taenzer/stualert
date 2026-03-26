@@ -81,8 +81,13 @@ function startHttpServer(
   config: Config,
   activityService: ActivityStateService,
   gpioManager: IGPIOService,
+  hardResetMowerStatus: () => Promise<void>,
 ): void {
-  const httpServer = createServer(activityService, gpioManager);
+  const httpServer = createServer(
+    activityService,
+    gpioManager,
+    hardResetMowerStatus,
+  );
   startServer(httpServer, config.http.port);
 }
 
@@ -111,8 +116,73 @@ async function main() {
   const ws = new HusqvarnaWebsocket(api, config, activityService);
   await ws.setup();
 
+  let resetInFlight = false;
+  const hardResetMowerStatus = async (reason: "manual" | "watchdog") => {
+    if (resetInFlight) return;
+    resetInFlight = true;
+
+    try {
+      console.log(`🧱 Hard-reset started (${reason})`);
+
+      try {
+        await ws.restartNow();
+      } catch (err) {
+        console.warn(
+          "⚠️ WebSocket restart failed (continuing with REST refresh):",
+          err,
+        );
+      }
+
+      const fresh = await api.getCurrentActivity(mowerId);
+      activityService.updateActivity(fresh.activity);
+
+      console.log(
+        `✅ Hard-reset finished (${reason}). Activity: ${fresh.activity}`,
+      );
+    } finally {
+      resetInFlight = false;
+    }
+  };
+
+  // Watchdog: if warning activity persists too long, force a hard-reset once per warning episode
+  const warningThresholdMs = config.watchdog.warningPersistResetMs;
+  const cooldownMs = config.watchdog.hardResetCooldownMs;
+  const watchdogIntervalMs = 30_000;
+
+  let lastWatchdogResetAt = 0;
+  let watchdogTriggeredForEpisode = false;
+
+  setInterval(() => {
+    const current = activityService.getCurrent();
+    if (!current) return;
+
+    const isWarning = isWarningLightActivity(current.activity);
+    if (!isWarning) {
+      watchdogTriggeredForEpisode = false;
+      return;
+    }
+
+    const warningDurationMs = Date.now() - current.timestamp.getTime();
+    const cooldownOk = Date.now() - lastWatchdogResetAt >= cooldownMs;
+
+    if (
+      !watchdogTriggeredForEpisode &&
+      cooldownOk &&
+      warningDurationMs >= warningThresholdMs
+    ) {
+      watchdogTriggeredForEpisode = true;
+      lastWatchdogResetAt = Date.now();
+
+      void hardResetMowerStatus("watchdog").catch((err) => {
+        console.error("❌ Watchdog hard-reset failed:", err);
+      });
+    }
+  }, watchdogIntervalMs);
+
   // Start HTTP Server
-  startHttpServer(config, activityService, gpioManager);
+  startHttpServer(config, activityService, gpioManager, () =>
+    hardResetMowerStatus("manual"),
+  );
 
   console.log("✅ Application started successfully");
 }

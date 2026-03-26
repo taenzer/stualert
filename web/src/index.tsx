@@ -13,6 +13,7 @@ export function App() {
   const { data, connected, error, lastMessageAt } = useActivity();
   const [testLoading, setTestLoading] = useState<boolean>(false);
   const [testActive, setTestActive] = useState<boolean>(false);
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
 
   const bntClass = (activity: MowerActivity) => {
     switch (activity) {
@@ -52,6 +53,18 @@ export function App() {
       setTestActive(false);
     } finally {
       setTestLoading(false);
+    }
+  };
+
+  const handleHardResetClick = async () => {
+    setResetLoading(true);
+
+    try {
+      await fetch("/api/mower/hard-reset", {
+        method: "POST",
+      });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -98,7 +111,8 @@ export function App() {
             <div>
               <div>
                 <button
-                  class={`btn btn-block cursor-default btn-md sm:btn-xl ${bntClass(data?.activity ?? MowerActivity.UNKNOWN)}`}
+                  class={`btn btn-block transition-colors cursor-default btn-md sm:btn-xl ${bntClass(data?.activity ?? MowerActivity.UNKNOWN)}`}
+                  disabled={resetLoading}
                 >
                   <MowerIcon />
                   {translateMowerActivity(
@@ -108,13 +122,20 @@ export function App() {
                 </button>
               </div>
 
-              <div>
+              <div class="flex gap-2 mt-4 flex-col sm:flex-row">
                 <button
-                  class="btn btn-sm w-full mt-4"
+                  class="btn btn-sm sm:basis-1/3 grow"
                   onClick={handleTestClick}
                   disabled={testActive || testLoading}
                 >
                   {testActive ? "Test läuft" : "Lampe testen"}
+                </button>
+                <button
+                  class="btn btn-sm sm:basis-1/3 grow"
+                  onClick={handleHardResetClick}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? "Status wird erneuert..." : "Status erneuern"}
                 </button>
               </div>
 

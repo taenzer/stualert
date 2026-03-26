@@ -84,6 +84,7 @@ function startHttpServer(
   hardResetMowerStatus: () => Promise<void>,
 ): void {
   const httpServer = createServer(
+    config,
     activityService,
     gpioManager,
     hardResetMowerStatus,

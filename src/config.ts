@@ -26,6 +26,21 @@ export interface Config {
   mower: {
     id: string | null | undefined;
   };
+  auth: {
+    basic: {
+      username: string;
+      password: string;
+    };
+    bypassCidrs: string[];
+  };
+}
+
+function parseCsv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 export function loadConfig(): Config {
@@ -71,6 +86,13 @@ export function loadConfig(): Config {
     },
     mower: {
       id: process.env.MOWER_ID,
+    },
+    auth: {
+      basic: {
+        username: process.env.BASIC_AUTH_USER || "",
+        password: process.env.BASIC_AUTH_PASSWORD || "",
+      },
+      bypassCidrs: parseCsv(process.env.AUTH_BYPASS_CIDRS),
     },
   };
 }
